@@ -2,7 +2,7 @@
   <div class="bg-white rounded-2xl px-5 py-4
            border border-gray-100 shadow-sm
            flex flex-col gap-4
-           md:flex-row md:items-center md:gap-6">
+           md:flex-row md:items-center ">
     <!-- LEFT: Avatar + Info -->
     <div class="flex items-center gap-4 md:flex-[2]">
       <div class="w-14 h-14 rounded-full overflow-hidden border border-gray-200 flex-shrink-0">
@@ -22,7 +22,6 @@
     <!-- CENTER: Progress -->
     <div class="md:flex-[3] space-y-1">
       <div class="flex justify-between text-xs text-gray-500">
-        <span>Progresso</span>
         <span class="font-medium text-gray-700">
           {{ candidate.percentage }}%
         </span>
@@ -38,22 +37,15 @@
 
     <!-- RIGHT: Numbers -->
     <!-- Numbers -->
-    <div class="flex gap-3 md:gap-4 justify-center md:flex-[3]">
-      <div class="bg-gray-50 rounded-lg px-3 py-2 text-center min-w-[72px]">
-        <p class="text-lg font-semibold text-gray-900 leading-none">
-          {{ candidate.confirmedVotes }}
-        </p>
-        <p class="text-[11px] text-gray-400">
-          Contribuições
-        </p>
-      </div>
+    <div class="flex gap-3 md:gap-4 justify-center items-center md:flex-1">
+
 
       <div class="bg-gray-50 rounded-lg px-3 py-2 text-center min-w-[72px]">
         <p class="text-lg font-semibold text-gray-900 leading-none">
           {{ candidate.votes }}
         </p>
         <p class="text-[11px] text-gray-400">
-          Participações
+          Votos
         </p>
       </div>
     </div>
@@ -63,7 +55,7 @@
     <button class="w-full md:w-auto
              bg-emerald-600 hover:bg-emerald-700 transition
              text-white font-medium px-5 py-2 rounded-lg" @click="$emit('participate', candidate)">
-      Participar
+      Votar
     </button>
   </div>
 </template>

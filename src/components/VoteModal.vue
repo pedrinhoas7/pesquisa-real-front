@@ -1,5 +1,5 @@
 <template>
-  <div class="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm
+  <div class="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm h-screen
            flex items-center justify-center px-4">
     <div class="bg-white w-full max-w-md rounded-2xl
              shadow-xl border border-gray-100">
@@ -16,8 +16,7 @@
       <!-- Body -->
       <div class="px-6 py-5 space-y-5">
         <!-- Candidate -->
-        <div class="flex items-center gap-4 bg-gray-50 rounded-xl p-4"
-          :style="`border: 2px solid ${props.candidate.color};`">
+        <div class="flex items-center gap-4 bg-gray-50 rounded-xl p-4" :style="`border: 2px solid ${candidate.color};`">
           <div class="w-12 h-12 rounded-full overflow-hidden">
             <img :src="candidate.avatar" :alt="candidate.name" class="w-full h-full object-cover" />
           </div>
@@ -32,44 +31,51 @@
           </div>
         </div>
 
-        <!-- Inputs -->
-        <div class="space-y-3">
+        <!-- FORM -->
+        <div v-if="flowState === 'form'" class="space-y-4">
+          <!-- CPF -->
           <input v-mask="'###.###.###-##'" v-model="cpf" type="text" placeholder="Seu CPF" class="w-full border border-gray-300 rounded-lg px-3 py-2
-         focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-
-
-          <input type="text" placeholder="Seu Apelido (opcional)" class="w-full border border-gray-300 rounded-lg px-3 py-2
                    focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+
+          <!-- Apelido -->
+          <input v-model="nickname" type="text" placeholder="Seu apelido (opcional)" maxlength="30" class="w-full border border-gray-300 rounded-lg px-3 py-2
+                   focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+
+          <!-- Termos -->
+          <TermsCheckbox :checked="agreedToTerms" @accept="agreedToTerms = !agreedToTerms" />
+
+          <!-- Voto público -->
+          <label class="flex items-start gap-3 text-sm text-gray-600">
+            <input type="checkbox" v-model="isPublicVote"
+              class="mt-1 rounded border-gray-300 accent-emerald-600" />
+
+            <span>
+              Tornar meu voto público
+              <span class="block text-xs text-gray-400">
+                Seu apelido poderá aparecer na lista de participantes
+              </span>
+            </span>
+          </label>
+
+
+          <!-- CTA -->
+          <button type="button" :disabled="!agreedToTerms" @click="onSubmit" class="w-full bg-emerald-600 hover:bg-emerald-700
+                   text-white font-semibold py-3 rounded-xl
+                   transition disabled:opacity-50">
+            {{ pixRequired ? 'Continuar' : 'Confirmar voto' }}
+          </button>
         </div>
 
-        <!-- Terms -->
-        <TermsCheckbox @accept="agreedToTerms = !agreedToTerms" />
+        <!-- PIX -->
+        <PixQRCode v-if="flowState === 'pix'" :candidate="candidate" :cpf="cpf" :nickname="nickname" :voteId="voteId"
+          @success="$emit('close')" @close="$emit('close')" />
 
-        <!-- CTA -->
-        <button type="button" :disabled="loading || !agreedToTerms" @click="onSubmit" class="w-full bg-emerald-600 hover:bg-emerald-700
-         text-white font-semibold py-3 rounded-xl
-         transition disabled:opacity-50">
-          {{ loading
-            ? 'Processando...'
-            : pixRequired
-              ? 'Gerar Pix de R$ 1,00'
-              : 'Confirmar Participação'
-          }}
-        </button>
-
-
-        <PixQRCode v-if="flowState === 'pix' && qrCodeBase64" :pixRequired="pixRequired" :qr-code-base64="qrCodeBase64" :candidate="candidate"
-          :transactionId="transactionId" @close="$emit('close')" />
-
-
-        <SuccessModal v-if="flowState === 'success'" @contribute="gerarPix()" @close="$emit('close')" />
-
-
-
+        <!-- SUCCESS -->
+        <SuccessModal v-if="flowState === 'success'" @contribute="flowState = 'pix'" @close="$emit('close')" />
       </div>
 
       <!-- Footer -->
-      <footer class="px-6 py-4 border-t border-gray-100 text-center">
+      <footer v-if="flowState === 'form'" class="px-6 py-4 border-t border-gray-100 text-center">
         <button class="text-sm text-gray-500 hover:text-gray-700" @click="$emit('close')">
           Cancelar
         </button>
@@ -79,61 +85,54 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import TermsCheckbox from './TermsCheckbox.vue'
 import PixQRCode from './PixQRCode.vue'
-import type { Candidate } from '@/types/Candidate'
-import { generatePix } from '@/services/pix';
 import SuccessModal from './SuccessModal.vue'
-
+import type { Candidate } from '@/types/Candidate'
+import { vote } from '@/services/vote'
 
 type FlowState = 'form' | 'pix' | 'success'
 
-
 const props = defineProps<{
   candidate: Candidate
+  pixRequired: boolean
 }>()
 
 const cpf = ref('')
-const loading = ref(false)
-const qrCodeBase64 = ref<string | null>(null)
-const transactionId = ref<string | null>(null)
+const nickname = ref('')
 const agreedToTerms = ref(false)
-const pixRequired = ref(false)
 const flowState = ref<FlowState>('form')
+const voteId = ref<string | null>(null)
+const isPublicVote = ref(false)
 
-
-async function gerarPix() {
-  try {
-    loading.value = true
-    flowState.value = 'pix'
-    const unmaskedCpf = cpf.value.replace(/\D/g, '')
-    if (unmaskedCpf.length !== 11) {
-      alert('CPF inválido')
-      return
-    }
-
-
-    const { data } = await generatePix(props.candidate.id, unmaskedCpf)
-
-    qrCodeBase64.value = data.qrCodeBase64
-    transactionId.value = data.transactionId
-  } catch (err) {
-    console.error(err)
-    alert('Erro ao gerar PIX')
-  } finally {
-    loading.value = false
-  }
-}
 
 async function onSubmit() {
-  if (pixRequired.value) {
-    await gerarPix()
-  } else {
+  const unmaskedCpf = cpf.value.replace(/\D/g, '')
+  if (unmaskedCpf.length !== 11) {
+    alert('CPF inválido')
+    return
+  }
+
+  if (props.pixRequired) {
+    flowState.value = 'pix'
+    return
+  }
+
+  try {
+    const { data } = await vote(
+      props.candidate.id,
+      unmaskedCpf,
+      nickname.value || null,
+      isPublicVote.value
+    )
+
+    voteId.value = data.transactionId
     flowState.value = 'success'
+  } catch (err) {
+    console.error(err)
+    alert('Erro ao registrar voto')
   }
 }
-
-
 
 </script>

@@ -30,10 +30,10 @@ Esta plataforma realiza uma pesquisa pública simbólica, sem valor eleitoral of
         <p>
           Contato:
           <a
-            href="mailto:contato@pesquisareal.org"
+            href="mailto:raziel_r@protom.me"
             class="text-blue-600 hover:underline"
           >
-            contato@pesquisareal.org
+            raziel_r@protom.me
           </a>
         </p>
       </div>
