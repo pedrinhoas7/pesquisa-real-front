@@ -3,7 +3,7 @@
         <div class=" mx-auto px-6 py-4 flex items-center justify-between">
             <!-- Logo + título -->
             <div class="flex items-center gap-4">
-                <Logo />
+                <Logo size="12" />
 
                 <div>
                     <h1 class="text-lg font-semibold text-gray-900 leading-tight">

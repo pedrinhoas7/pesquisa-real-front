@@ -2,8 +2,13 @@
     <img
       :src="Logo"
       alt="Logo Pesquisa Real"
-      class="w-15 h-15" />
+      :class="`w-${props.size} h-${props.size}`" />
 </template>
-<script setup>
+<script setup lang="ts">
 import Logo from '@/assets/img/logo.png'
+
+const props = defineProps<{
+  size: String
+}>()
+
 </script>
