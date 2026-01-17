@@ -59,6 +59,37 @@
           class="w-44 h-44 rounded-xl border border-gray-100" />
       </div>
 
+      <!-- Copia e cola estilizado -->
+      <div v-if="qrCode" class="space-y-2">
+        <label class="text-sm font-medium text-gray-700">
+          Copia e cola
+        </label>
+
+        <div class="relative">
+          <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-800
+             break-all cursor-pointer hover:bg-gray-100 transition-colors select-all" @click="copyToClipboard(qrCode)"
+            title="Clique para copiar">
+            <!-- Ícone de clipboard -->
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 absolute top-2 right-2 text-gray-400" fill="none"
+              viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M8 16h8M8 12h8m-6 8h6m-6-16h6a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2z" />
+            </svg>
+            {{ qrCode }}
+          </div>
+
+          <!-- Mensagem de copiado -->
+          <transition name="fade">
+            <div v-if="copied"
+              class="absolute right-0 top-0 mt-1 mr-1 px-2 py-0.5 text-xs text-white bg-[#059669] rounded">
+              Copiado!
+            </div>
+          </transition>
+        </div>
+      </div>
+
+
+
       <!-- Candidate -->
       <div class="flex items-center gap-4 bg-gray-50 rounded-xl p-4" :style="`border: 2px solid ${candidate.color};`">
         <div class="w-12 h-12 rounded-full overflow-hidden">
@@ -124,6 +155,7 @@ const props = defineProps<{
 const amount = computed(() => cents.value / 100)
 const loading = ref(false)
 const qrCodeBase64 = ref<string | null>(null)
+const qrCode = ref<string | null>(null)
 const transactionId = ref<string | null>(null)
 const status = ref<'PENDING' | 'CONFIRMED'>('PENDING')
 const progress = ref(0)
@@ -194,11 +226,12 @@ async function gerarPix() {
     const { data } = await generatePix(
       props.candidate.id,
       unmaskedCpf,
-      amount.value, 
+      amount.value,
       props.nickname,
       props.voteId
     )
 
+    qrCode.value = data.qrCode
     qrCodeBase64.value = data.qrCodeBase64
     transactionId.value = data.transactionId
   } catch (err) {
@@ -208,6 +241,16 @@ async function gerarPix() {
     loading.value = false
   }
 }
+
+const copied = ref(false);
+
+const copyToClipboard = (text: string) => {
+  navigator.clipboard.writeText(text).then(() => {
+    copied.value = true;
+    setTimeout(() => (copied.value = false), 1500); // some efeito sumindo
+  });
+};
+
 
 watch(transactionId, id => {
   if (!id) return
@@ -231,3 +274,6 @@ onUnmounted(() => {
   if (unsubscribe) unsubscribe()
 })
 </script>
+<style>
+
+</style>
