@@ -97,11 +97,11 @@ function startListener() {
     unsubscribe = onSnapshot(q, snap => {
         snap.docChanges().forEach(change => {
             if (change.type !== 'added') return
-
+            const data = change.doc.data();
             const vote = {
                 id: change.doc.id,
-                candidateName: props.candidates.find(c => c.id === change.doc.data().candidatoId).name,
-                ...change.doc.data()
+                candidateName: props.candidates.find(c => c.id ===data.candidatoId).name ?? 'Desconhecido',
+                ...data
             }
 
             // evita duplicação
@@ -109,6 +109,7 @@ function startListener() {
             seenIds.add(vote.id)
 
             votes.value.unshift(vote)
+            votes.value = votes.value.sort((a, b) => b.createdAt - a.createdAt)
         })
     })
 }
