@@ -9,7 +9,7 @@
           Participar da pesquisa
         </h2>
         <p class="text-sm text-gray-500 mt-1">
-          Sua participação será registrada como doação simbólica
+          Participação limitada a um voto por CPF
         </p>
       </header>
 
@@ -55,7 +55,6 @@
               </span>
             </span>
           </label>
-
 
           <!-- CTA -->
           <button type="button" :disabled="!agreedToTerms" @click="onSubmit" class="w-full bg-emerald-600 hover:bg-emerald-700
