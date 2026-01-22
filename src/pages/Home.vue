@@ -190,7 +190,15 @@ onMounted(() => {
   loadDashboard(true)
   listen()
 })
+
 onUnmounted(() => {
   stop()
 })
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    stop()
+  }
+})
+
 </script>

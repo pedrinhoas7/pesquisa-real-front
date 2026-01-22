@@ -152,51 +152,47 @@ const props = defineProps<{
   voteId: string
 }>()
 
-const amount = computed(() => cents.value / 100)
+/* ------------------------
+   Estado
+------------------------ */
+const cents = ref(0)
 const loading = ref(false)
 const qrCodeBase64 = ref<string | null>(null)
 const qrCode = ref<string | null>(null)
 const transactionId = ref<string | null>(null)
 const status = ref<'PENDING' | 'CONFIRMED'>('PENDING')
 const progress = ref(0)
+const copied = ref(false)
+
+let unsubscribe: (() => void) | null = null
+let safetyTimeout: ReturnType<typeof setTimeout> | null = null
+
 const quickValues = [10, 50, 100]
 
+/* ------------------------
+   Computed
+------------------------ */
+const amount = computed(() => cents.value / 100)
+
+const formatted = computed(() =>
+  (cents.value / 100).toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+)
+
+/* ------------------------
+   Helpers
+------------------------ */
 function setAmount(value: number) {
   cents.value = value * 100
 }
 
-/**
- * Mostra o valor formatado (1,00)
- */
-const formattedAmount = computed(() => {
-  if (amount.value === null) return ''
-  return amount.value.toLocaleString('pt-BR', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  })
-})
-
-/**
- * Converte texto → número
- */
-const cents = ref(0)
-const formatted = computed(() => {
-  return (cents.value / 100).toLocaleString('pt-BR', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  })
-})
-
 function onInput(event: Event) {
   const input = event.target as HTMLInputElement
-
-  // pega só números
   const digits = input.value.replace(/\D/g, '')
-
-  // evita NaN
   cents.value = digits ? Number(digits) : 0
 }
-let unsubscribe: (() => void) | null = null
 
 function animateProgress() {
   const interval = setInterval(() => {
@@ -208,10 +204,24 @@ function animateProgress() {
   }, 150)
 }
 
+function cleanupListener() {
+  if (unsubscribe) {
+    unsubscribe()
+    unsubscribe = null
+  }
+  if (safetyTimeout) {
+    clearTimeout(safetyTimeout)
+    safetyTimeout = null
+  }
+}
+
+/* ------------------------
+   PIX
+------------------------ */
 async function gerarPix() {
   const unmaskedCpf = props.cpf.replace(/\D/g, '')
 
-  if (unmaskedCpf.length !== 11) {
+  if (!isValidCPF(unmaskedCpf)) {
     alert('CPF inválido')
     return
   }
@@ -222,6 +232,7 @@ async function gerarPix() {
   }
 
   loading.value = true
+
   try {
     const { data } = await generatePix(
       props.candidate.id,
@@ -242,38 +253,89 @@ async function gerarPix() {
   }
 }
 
-const copied = ref(false);
-
-const copyToClipboard = (text: string) => {
+/* ------------------------
+   Clipboard
+------------------------ */
+function copyToClipboard(text: string) {
   navigator.clipboard.writeText(text).then(() => {
-    copied.value = true;
-    setTimeout(() => (copied.value = false), 1500); // some efeito sumindo
-  });
-};
+    copied.value = true
+    setTimeout(() => (copied.value = false), 1500)
+  })
+}
 
 
+function isValidCPF(cpf: string): boolean {
+  const cleaned = cpf.replace(/\D/g, '')
+
+  // 1️⃣ tamanho
+  if (cleaned.length !== 11) return false
+
+  // 2️⃣ rejeita sequências iguais (111.111.111-11 etc)
+  if (/^(\d)\1+$/.test(cleaned)) return false
+
+  const digits = cleaned.split('').map(Number)
+
+  // 3️⃣ primeiro dígito verificador
+  let sum = 0
+  for (let i = 0; i < 9; i++) {
+    sum += digits[i] * (10 - i)
+  }
+
+  let firstCheck = (sum * 10) % 11
+  if (firstCheck === 10) firstCheck = 0
+  if (firstCheck !== digits[9]) return false
+
+  // 4️⃣ segundo dígito verificador
+  sum = 0
+  for (let i = 0; i < 10; i++) {
+    sum += digits[i] * (11 - i)
+  }
+
+  let secondCheck = (sum * 10) % 11
+  if (secondCheck === 10) secondCheck = 0
+  if (secondCheck !== digits[10]) return false
+
+  return true
+}
+
+/* ------------------------
+   Listener da transação
+   (NÃO pausa em tab hidden)
+------------------------ */
 watch(transactionId, id => {
-  if (!id) return
+  if (!id || unsubscribe) return
 
   unsubscribe = onSnapshot(
     doc(db, 'transactions', id),
     snap => {
       if (!snap.exists()) return
 
-      status.value = snap.data().status
+      const newStatus = snap.data().status
+
+      if (status.value === newStatus) return
+      status.value = newStatus
 
       if (status.value === 'CONFIRMED') {
         animateProgress()
         setTimeout(() => emit('success'), 1500)
+        cleanupListener()
       }
     }
   )
+
+  // ⏱️ timeout de segurança (5 min)
+  safetyTimeout = setTimeout(() => {
+    if (status.value === 'PENDING') {
+      cleanupListener()
+      alert('Pagamento não confirmado. Tente novamente.')
+    }
+  }, 5 * 60 * 1000)
 })
 
+/* ------------------------
+   Cleanup
+------------------------ */
 onUnmounted(() => {
-  if (unsubscribe) unsubscribe()
+  cleanupListener()
 })
 </script>
-<style>
-
-</style>
