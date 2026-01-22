@@ -46,8 +46,7 @@
 
           <!-- Voto público -->
           <label class="flex items-start gap-3 text-sm text-gray-600">
-            <input type="checkbox" v-model="isPublicVote"
-              class="mt-1 rounded border-gray-300 accent-emerald-600" />
+            <input type="checkbox" v-model="isPublicVote" class="mt-1 rounded border-gray-300 accent-emerald-600" />
 
             <span>
               Tornar meu voto público
@@ -72,6 +71,8 @@
 
         <!-- SUCCESS -->
         <SuccessModal v-if="flowState === 'success'" @contribute="flowState = 'pix'" @close="$emit('close')" />
+
+        <CpfAlreadyVotedModal v-if="flowState === 'cpf-used'" @contribute="flowState = 'pix'" @close="$emit('close')" />
       </div>
 
       <!-- Footer -->
@@ -91,8 +92,12 @@ import PixQRCode from './PixQRCode.vue'
 import SuccessModal from './SuccessModal.vue'
 import type { Candidate } from '@/types/Candidate'
 import { vote } from '@/services/vote'
+import axios from 'axios'
+import CpfAlreadyVotedModal from './CpfAlreadyVotedModal.vue'
 
-type FlowState = 'form' | 'pix' | 'success'
+
+type FlowState = 'form' | 'pix' | 'success' | 'cpf-used'
+
 
 const props = defineProps<{
   candidate: Candidate
@@ -106,16 +111,11 @@ const flowState = ref<FlowState>('form')
 const voteId = ref<string | null>(null)
 const isPublicVote = ref(false)
 
-
 async function onSubmit() {
   const unmaskedCpf = cpf.value.replace(/\D/g, '')
+
   if (unmaskedCpf.length !== 11) {
     alert('CPF inválido')
-    return
-  }
-
-  if (props.pixRequired) {
-    flowState.value = 'pix'
     return
   }
 
@@ -128,11 +128,17 @@ async function onSubmit() {
     )
 
     voteId.value = data.transactionId
-    flowState.value = 'success'
-  } catch (err) {
-    console.error(err)
-    alert('Erro ao registrar voto')
-  }
-}
+    flowState.value = props.pixRequired ? 'pix' : 'success'
 
+  } catch (err: any) {
+    if (err?.response?.status === 409) {
+      flowState.value = 'cpf-used'
+      voteId.value = err.response.data?.transactionId ?? null
+      return
+    }
+
+    console.error(err)
+  }
+
+}
 </script>
